@@ -13,10 +13,6 @@ Private Sub cmdEnd_Click()
 End Sub
 
 Private Sub cmdNew_Click()
-'    Dim blH             As Boolean
-'    Dim blM             As Boolean
-'    Dim blT             As Boolean
-'    Dim blF             As Boolean
     Dim strWk           As String
     Dim lWk             As Long
     Dim lWk2            As Long
@@ -33,16 +29,27 @@ Private Sub cmdNew_Click()
     
     If Dir(ThisWorkbook.Path & "\工場送付用(JAN抽出)*.xlsx") = "" Then MsgBox ("工場送付用(JAN抽出)が見つかりません"): Exit Sub
     
-    'ＤＢ接続
-    CN.CursorLocation = adUseClient
-    CN.Open P_ConnectString
+' ---ＤＢ接続   ←テスト時はコメントにする---
+ CN.CursorLocation = adUseClient
+ CN.Open P_ConnectString
+
+ ReDim rec(0)
+ ReDim arrChangeKJ(0)
+ '更新データの取得
+ If Not fncGetUpdData(CN, arrChangeKJ, rec) Then GoTo Exit_Update
+ If UBound(arrChangeKJ) = 0 Or UBound(rec) = 0 Then GoTo Exit_Update
+'-----------------------------------------
     
-    ReDim rec(0)
-    ReDim arrChangeKJ(0)
-    '更新データの取得
-    If Not fncGetUpdData(CN, arrChangeKJ, rec) Then GoTo Exit_Update
-    If UBound(arrChangeKJ) = 0 Or UBound(rec) = 0 Then GoTo Exit_Update
-    
+
+' ----テスト用ダミーデータを直接セット----
+'ReDim arrChangeKJ(1)
+'arrChangeKJ(1) = "103"  ' テスト用工場コード
+'
+'ReDim rec(1)
+'rec(1).KCD = "103"
+'rec(1).HINM = "テスト商品"
+'-----------------------------------------
+
     strWk = "": lWk = 0: lWk2 = 0
     For i = 1 To UBound(arrChangeKJ)
         lWk = 0
@@ -69,33 +76,6 @@ Private Sub cmdNew_Click()
         End If
     End If
     
-'    Call subSetSVPath
-'    intWk = 0
-'    intWk = fncEditChk(blH, blM, blT, blF)
-'    If intWk > 0 Then
-'        If blH Then strWk = "枚方工場"
-'        If blM Then
-'            If Not strWk = "" Then strWk = strWk & ","
-'            strWk = strWk & "武蔵工場"
-'        End If
-'        If blT Then
-'            If Not strWk = "" Then strWk = strWk & ","
-'            strWk = strWk & "タカラ食品"
-'        End If
-'        If blF Then
-'            If Not strWk = "" Then strWk = strWk & ","
-'            strWk = strWk & "福岡工場"
-'        End If
-'        MsgBox (strWk & "でCSVファイルを作成中です。")
-'        If intWk = 1 Then
-'            If MsgBox("排他ファイルを強制的に削除してCSVファイルを作成しますか？", vbYesNo) = vbYes Then
-'                Call subDeleteEditFile
-'                GoTo Update
-'            End If
-'        End If
-'        Exit Sub
-'    End If
-
     '他PCで排他ロックがかかる前に先に排他ファイルを作成しておく
     For i = 1 To UBound(arrChangeKJ)
         '排他ファイルを作成
@@ -107,7 +87,7 @@ Private Sub cmdNew_Click()
     For i = 1 To UBound(rec)
         If Not strWk = "" Then strWk = strWk & "@@@"
         strWk = strWk & fncMakebody(rec(i).KCD, rec(i).HINM)
-        Call subUpdate(CN, rec(i))
+         Call subUpdate(CN, rec(i))     '←テスト時はコメントにする
     Next
     
     Dim FSO     As New Scripting.FileSystemObject
@@ -127,7 +107,7 @@ Private Sub cmdNew_Click()
         Call subDeleteEditFile(arrChangeKJ(i))
     Next
     
-    '追加があった工場にメール送信
+    '追加があった工場にメール送信　20260407 修正(送信元選択フォームの表示)
     sSp = Split(strWk, "@@@")
     For i = 1 To UBound(arrChangeKJ)
         strBody = ""
@@ -140,25 +120,27 @@ Private Sub cmdNew_Click()
         Next
         If Not strBody = "" Then
             fromAddress = "": toAddress = ""
+            ' 送信元選択フォームを表示
+            Dim frm As New frmFromAddress
+            frm.KCD = arrChangeKJ(i)   ' 工場コードをセット
+            frm.Show vbModal
+            If frm.Tag <> "" Then
+                fromAddress = frm.Tag
+            Else
+                ' キャンセル時はメール送信しない
+                Set frm = Nothing
+                GoTo ContinueNextFactory
+            End If
+            Unload frm
+            Set frm = Nothing
             Call subGetMailAdd(arrChangeKJ(i), fromAddress, toAddress)
             Call subSendMail(fromAddress, toAddress, "", "IJPデータ追加通知", strBody)
         End If
+    ContinueNextFactory:
     Next
-'Update:
-'
-'    Call subMakeEditFile
-'    If Not fncReplace Then: GoTo Exit_Update
-'    Dim FSO     As New Scripting.FileSystemObject
-'    'CSVを作成する
-'    Call subWriteCSV(FSO)
-'    'CSVをファイルサーバと工場の共有フォルダに送る
-'    Call subSendCSV(FSO)
-'    Set FSO = Nothing
-'    Call subMain
-'    'エラーになった製品があればシートを表示する
-'    If Not stError.Cells(3, 1) = "" Then stError.Select
+
 Exit_Update:
-    CN.Close: Set CN = Nothing
+    CN.Close: Set CN = Nothing  '←テスト時はコメントにする
 End Sub
 
 Private Sub cmdUpdate_Click()

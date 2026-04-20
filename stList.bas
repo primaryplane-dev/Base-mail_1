@@ -12,10 +12,6 @@ Private Sub cmdLayout9_Click()
 End Sub
 
 Private Sub cmdUpdate_Click()
-'    Dim blH             As Boolean
-'    Dim blM             As Boolean
-'    Dim blT             As Boolean
-'    Dim blF             As Boolean
     Dim strWk           As String
     Dim lWk             As Long
     Dim lWk2            As Long
@@ -59,34 +55,6 @@ Private Sub cmdUpdate_Click()
         End If
     End If
     
-'    'サーバーパスのセット
-'    Call subSetSVPath
-'    intWk = 0
-'    intWk = fncEditChk(blH, blM, blT, blF)
-'    If intWk > 0 Then
-'        If blH Then strWk = "枚方工場"
-'        If blM Then
-'            If Not strWk = "" Then strWk = strWk & ","
-'            strWk = strWk & "武蔵工場"
-'        End If
-'        If blT Then
-'            If Not strWk = "" Then strWk = strWk & ","
-'            strWk = strWk & "タカラ食品"
-'        End If
-'        If blF Then
-'            If Not strWk = "" Then strWk = strWk & ","
-'            strWk = strWk & "福岡工場"
-'        End If
-'        MsgBox (strWk & "でCSVファイルを作成中です。")
-'        If intWk = 1 Then
-'            If MsgBox("排他ファイルを強制的に削除してCSVファイルを作成しますか？", vbYesNo) = vbYes Then
-'                Call subDeleteEditFile
-'                GoTo Update
-'            End If
-'        End If
-'        Exit Sub
-'    End If
-
     '他PCで排他ロックがかかる前に先に排他ファイルを作成しておく
     For i = 1 To UBound(arrChangeKJ)
         '排他ファイルを作成
@@ -106,44 +74,44 @@ Private Sub cmdUpdate_Click()
     Next
     Set FSO = Nothing
     
-    '削除があった工場にメール送信
-    For i = 1 To UBound(arrChangeKJ)
-        strBody = ""
-        For j = 1 To UBound(delRec)
-            If delRec(j).KCD = arrChangeKJ(i) Then
-                If Not strBody = "" Then strBody = strBody & vbLf
-                strBody = strBody & fncMakebody2(1, delRec(j).KCD, delRec(j).HINM)
-            End If
-        Next
-        If Not strBody = "" Then
-            fromAddress = "": toAddress = ""
-            Call subGetMailAdd(arrChangeKJ(i), fromAddress, toAddress)
-            Call subSendMail(fromAddress, toAddress, "", "IJPデータ削除通知", strBody)
+    
+'削除があった工場にメール送信　20260407 修正(送信元選択フォームの表示)
+For i = 1 To UBound(arrChangeKJ)
+    Debug.Print "arrChangeKJ(" & i & ")=" & arrChangeKJ(i)
+
+    strBody = ""
+    For j = 1 To UBound(delRec)
+        If delRec(j).KCD = arrChangeKJ(i) Then
+            If Not strBody = "" Then strBody = strBody & vbLf
+            strBody = strBody & fncMakebody2(1, delRec(j).KCD, delRec(j).HINM)
         End If
     Next
-        
+    If Not strBody = "" Then
+        fromAddress = "": toAddress = ""
+        ' 送信元選択フォームを表示
+        Dim frm As New frmFromAddress
+        frm.KCD = arrChangeKJ(i)   ' ← 工場コードをセット
+        frm.Show vbModal
+        If frm.Tag <> "" Then
+            fromAddress = frm.Tag
+        Else
+            ' キャンセル時はメール送信しない
+            Set frm = Nothing
+            GoTo ContinueNextFactory
+        End If
+        Unload frm
+        Set frm = Nothing
+        Call subGetMailAdd(arrChangeKJ(i), fromAddress, toAddress)
+        Call subSendMail(fromAddress, toAddress, "", "IJPデータ削除通知", strBody)
+    End If
+ContinueNextFactory:
+Next
+    
+       
     'データ再表示
     Call subMain
     
-    
-'Update:
-'    Call subMakeEditFile
-'
-'    Call subSetData
-'    Dim FSO     As New Scripting.FileSystemObject
-'    'CSVを作成する
-'    Call subWriteCSV(FSO)
-'    'CSVをファイルサーバと工場の共有フォルダに送る
-'    Call subSendCSV(FSO)
-''    'CSVとエクセルを比較する
-''    Call subChkCSV(FSO)
-'    Set FSO = Nothing
-'    Call subMain
-'    'エラーになった製品があればシートを表示する
-'    If Not stError.Cells(3, 1) = "" Then stError.Select
-'
-'Exit_Update:
-'    Call subDeleteEditFile
+
 End Sub
 
 Private Sub cmdLabel_Click()
@@ -288,3 +256,4 @@ Private Sub subOpen()
     obj.Show
     Set obj = Nothing
 End Sub
+

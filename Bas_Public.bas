@@ -1,33 +1,33 @@
 Option Explicit
 
 '------------------------------------------------------本番----------------------------------------------------------
-Public Const P_ConnectString    As String = "Provider=IBMDA400;Data Source=HONSHA;User ID=ODBC001;Password=FJPN2480;"
-
-Public Const P_SVPathM          As String = "\\srv0901\public1\IJP\"
-Public Const P_SVPathH          As String = "\\srv0601\public1\IJP\"
-Public Const P_SVPathF          As String = "\\srv3701\public1\IJP\"
-Public Const P_SVPathT          As String = "\\srv3601\public\IJP\"
-
-Public Const P_IPAddM           As String = "\\10.2.9.222\,\\10.2.9.224\,\\10.2.9.226\,\\10.2.9.228\"
-Public Const P_IPAddH           As String = "\\10.4.6.155\,\\10.4.6.163\"                                      'CHG 2024.03.31
-Public Const P_IPAddF           As String = "\\10.1.37.219\,\\10.1.37.230\"
-Public Const P_IPAddT           As String = "\\10.1.36.211\,\\10.1.36.212\"
-
-Public Const P_KarutePath       As String = "\\srv2401\public1\添加物関連\フェア商品　　　表示一覧\【最新】冷凍生地表示\"
+'Public Const P_ConnectString    As String = "Provider=IBMDA400;Data Source=HONSHA;User ID=ODBC001;Password=FJPN2480;"
+'
+'Public Const P_SVPathM          As String = "\\srv0901\public1\IJP\"
+'Public Const P_SVPathH          As String = "\\srv0601\public1\IJP\"
+'Public Const P_SVPathF          As String = "\\srv3701\public1\IJP\"
+'Public Const P_SVPathT          As String = "\\srv3601\public\IJP\"
+'
+'Public Const P_IPAddM           As String = "\\10.2.9.222\,\\10.2.9.224\,\\10.2.9.226\,\\10.2.9.228\"
+'Public Const P_IPAddH           As String = "\\10.4.6.155\,\\10.4.6.163\"                                      'CHG 2024.03.31
+'Public Const P_IPAddF           As String = "\\10.1.37.219\,\\10.1.37.230\"
+'Public Const P_IPAddT           As String = "\\10.1.36.211\,\\10.1.36.212\"
+'
+'Public Const P_KarutePath       As String = "\\srv2401\public1\添加物関連\フェア商品　　　表示一覧\【最新】冷凍生地表示\"
 '------------------------------------------------------テスト--------------------------------------------------------
-'Public Const P_ConnectString  As String = "Provider=IBMDA400;Data Source=FUJIPAN;User ID=ODBC001;Password=FJPN2480;"
-'
-'Public Const P_SVPathM          As String = "\\srv0290\System\システム部\bool\24 BASEインクジェットプリンタ\BASE版\TEST\musashi\"
-'Public Const P_SVPathH          As String = "\\srv0290\System\システム部\bool\24 BASEインクジェットプリンタ\BASE版\TEST\hirakata\"
-'Public Const P_SVPathF          As String = "\\srv0290\System\システム部\bool\24 BASEインクジェットプリンタ\BASE版\TEST\fukuoka\"
-'Public Const P_SVPathT          As String = "\\srv0290\System\システム部\bool\24 BASEインクジェットプリンタ\BASE版\TEST\takara\"
-'
-'Public Const P_IPAddM           As String = "C:\"
-'Public Const P_IPAddH           As String = "C:\"
-'Public Const P_IPAddF           As String = "C:\"
-'Public Const P_IPAddT           As String = "C:\"
-'
-'Public Const P_KarutePath       As String = "\\srv0290\System\システム部\bool\24 BASEインクジェットプリンタ\BASE版\カルテ\"
+Public Const P_ConnectString  As String = "Provider=IBMDA400;Data Source=FUJIPAN;User ID=ODBC001;Password=FJPN2480;"
+
+Public Const P_SVPathM          As String = "\\srv0290\System\システム部\bool\24 BASEインクジェットプリンタ\BASE版\TEST\musashi\"
+Public Const P_SVPathH          As String = "\\srv0290\System\システム部\bool\24 BASEインクジェットプリンタ\BASE版\TEST\hirakata\"
+Public Const P_SVPathF          As String = "\\srv0290\System\システム部\bool\24 BASEインクジェットプリンタ\BASE版\TEST\fukuoka\"
+Public Const P_SVPathT          As String = "\\srv0290\System\システム部\bool\24 BASEインクジェットプリンタ\BASE版\TEST\takara\"
+
+Public Const P_IPAddM           As String = "C:\"
+Public Const P_IPAddH           As String = "C:\"
+Public Const P_IPAddF           As String = "C:\"
+Public Const P_IPAddT           As String = "C:\"
+
+Public Const P_KarutePath       As String = "\\srv0290\System\システム部\bool\24 BASEインクジェットプリンタ\BASE版\カルテ\"
 '--------------------------------------------------------------------------------------------------------------------
 
 Public Const P_SavePath         As String = "bin\IJPControl\InjiData\"
@@ -61,3 +61,22 @@ Public Type GIrec
     YOB(20)                     As String
     KCD                         As String
 End Type
+
+
+' 工場コード（KCD）からメーリングリスト.xlsxのフルパスを返す
+Public Function fncGetMailListPathByKCD(KCD As String) As String
+    Select Case KCD
+        Case "001" ' 枚方
+            fncGetMailListPathByKCD = P_SVPathH & "メーリングリスト.xlsx"
+        Case "002" ' 武蔵
+            fncGetMailListPathByKCD = P_SVPathM & "メーリングリスト.xlsx"
+        Case "102" ' タカラ
+            fncGetMailListPathByKCD = P_SVPathT & "メーリングリスト.xlsx"
+        Case "103" ' 福岡
+            fncGetMailListPathByKCD = P_SVPathF & "メーリングリスト.xlsx"
+        Case Else
+            fncGetMailListPathByKCD = "" ' 未定義の場合は空文字
+    End Select
+End Function
+
+
