@@ -14,7 +14,7 @@ Public Function fncGetUpdData(ByRef CN As ADODB.Connection, ByRef arrChangeKJ() 
     Dim ST          As Worksheet
     Dim BK2         As Workbook
     Dim ST2         As Worksheet
-    Dim RS          As New ADODB.Recordset
+    Dim RS          As ADODB.Recordset
     Dim strSQL      As String
     Dim lRow        As Long
     Dim lRow2       As Long
@@ -31,6 +31,7 @@ Public Function fncGetUpdData(ByRef CN As ADODB.Connection, ByRef arrChangeKJ() 
     
     fncGetUpdData = False
     Call subBeforeEdit
+    On Error GoTo ErrorHandler
 
     buf = Dir(ThisWorkbook.Path & "\工場送付用(JAN抽出)*.xlsx")
     strWk = ""
@@ -41,6 +42,7 @@ Public Function fncGetUpdData(ByRef CN As ADODB.Connection, ByRef arrChangeKJ() 
         buf = Dir()
     Loop
     
+    On Error GoTo ErrorHandler
     Set BK = Workbooks.Open(ThisWorkbook.Path & "\工場送付用(JAN抽出)" & lWk & ".xlsx")
     Set ST = BK.Sheets(1)
     
@@ -57,6 +59,7 @@ Public Function fncGetUpdData(ByRef CN As ADODB.Connection, ByRef arrChangeKJ() 
     Do While Not ST.Cells(lRow, 1) = ""
         buf = ""
         strPath = P_KarutePath
+        On Error GoTo ErrorHandler
         buf = Dir(strPath & StrConv(ST.Cells(lRow, 1), vbNarrow) & "*.xls")
         If buf = "" Then
             MsgBox ("品番:" & StrConv(ST.Cells(lRow, 1), vbNarrow) & "カルテ用データが見つかりません")
@@ -72,6 +75,7 @@ Public Function fncGetUpdData(ByRef CN As ADODB.Connection, ByRef arrChangeKJ() 
     strSQL = strSQL & "   AND GIKBN = '2' "
     strSQL = strSQL & "   AND NOT GIPROJ = '9' "
     strSQL = strSQL & " GROUP BY GIHNO "
+    Set RS = New ADODB.Recordset
     RS.Open strSQL, CN, adOpenForwardOnly, adLockReadOnly
     
     lRow = 2
@@ -89,6 +93,7 @@ Public Function fncGetUpdData(ByRef CN As ADODB.Connection, ByRef arrChangeKJ() 
             strPath = P_KarutePath
             buf = Dir(strPath & StrConv(ST.Cells(lRow, 1), vbNarrow) & "*.xls")
             Do While buf <> ""
+                On Error GoTo ErrorHandler
                 Set BK2 = Workbooks.Open(strPath & buf)
                 Set ST2 = BK2.Sheets("商品カルテ用データ")
                 bExist2 = False
@@ -182,119 +187,39 @@ Public Function fncGetUpdData(ByRef CN As ADODB.Connection, ByRef arrChangeKJ() 
     Loop
     Set ST2 = Nothing: Set BK2 = Nothing
     
-'    Do While Not ST.Cells(lRow, 1) = ""
-'        strPath = P_KarutePath
-'        buf = Dir(strPath & StrConv(ST.Cells(lRow, 1), vbNarrow) & "*.xls")
-''        If buf = "" Then
-''            strPath = P_KarutePath & "PB生地\"
-''            buf = Dir(strPath & StrConv(ST.Cells(lRow, 1), vbNarrow) & "*.xls")
-''        End If
-'        If buf = "" Then
-'            MsgBox ("品番:" & StrConv(ST.Cells(lRow, 1), vbNarrow) & "カルテ用データが見つかりません")
-'            GoTo Exit_fncReplace
-'        End If
-'        Do While buf <> ""
-'            Set BK2 = Workbooks.Open(strPath & buf)
-'            Set ST2 = BK2.Sheets("商品カルテ用データ")
-'            ReDim Preserve rec(UBound(rec) + 1)
-'            rec(UBound(rec)).HNO = Format(Trim(ST.Cells(lRow, 1)), "00000")
-'            rec(UBound(rec)).JAN = Trim(ST.Cells(lRow, 3))
-'            rec(UBound(rec)).KHN1 = Format(Trim(ST.Cells(lRow, 4)), "00000")
-'            rec(UBound(rec)).HINM = Trim(ST2.Cells(1, 3).Text)
-'            strWk = Trim(ST2.Cells(45, 2).Text)
-'            Call subChkMojibake(strWk)
-'            strWk = StrConv(strWk, vbWide)      '2024/04/18 Hirata Add
-'            '----------------------------------------------------------2024/05/28 Add
-'            sSp = Split(strWk, vbLf & vbLf)
-'            j = 0
-'            For i = 0 To UBound(sSp)
-'                strWk = sSp(i)
-'                strWk = Replace(strWk, vbLf, "")
-'                For j = j + 1 To 8
-'                    rec(UBound(rec)).GNM(j) = Left(strWk, 35)
-'                    strWk = Replace(strWk, rec(UBound(rec)).GNM(j), "")
-'                    If strWk = "" Then Exit For
-'                Next
-'            Next
-'            i = j
-'            '----------------------------------------------------------
-''            For i = 1 To 8
-''                rec(UBound(rec)).GNM(i) = Left(strWk, 35)
-''                strWk = Replace(strWk, rec(UBound(rec)).GNM(i), "")
-''                If strWk = "" Then Exit For
-''            Next
-'            If Trim(ST2.Cells(8, 2).Text) = "焼成冷凍" Then
-'                rec(UBound(rec)).PROJ = "3"
-'            Else
-'                rec(UBound(rec)).PROJ = "1"
-'                If i >= 6 Then rec(UBound(rec)).PROJ = "5"
-'            End If
-'            If ST2.Cells(15, 2).Text = "Amazon" Then
-'                rec(UBound(rec)).PROJ = "10"
-'            End If
-'            If InStr(Trim(ST2.Cells(4, 3)), "kg") > 0 Or InStr(Trim(ST2.Cells(4, 3)), "Kg") > 0 Or InStr(Trim(ST2.Cells(4, 3)), "KG") > 0 Or InStr(Trim(ST2.Cells(4, 3)), "㎏") > 0 Then
-'                rec(UBound(rec)).TNI = "1"
-'            End If
-'            rec(UBound(rec)).JTI(1) = Val(Trim(ST2.Cells(4, 3)))
-'            strWk = Trim(ST2.Cells(7, 3))
-'            If strWk = "対応なし" Then strWk = ""
-'            If InStr(strWk, ",") > 0 Or InStr(strWk, "、") > 0 Then strWk = ""
-'            If strWk = "" Then
-'                strWk = rec(UBound(rec)).JTI(1) & IIf(rec(UBound(rec)).TNI = "1", "kg", "個")
-'            Else
-'                strWk = rec(UBound(rec)).JTI(1) & IIf(rec(UBound(rec)).TNI = "1", "kg", "個") & "(" & strWk & ")"
-'            End If
-'            rec(UBound(rec)).JTI(2) = strWk
-'            rec(UBound(rec)).HHI = Trim(ST2.Cells(11, 2).Text)
-'            rec(UBound(rec)).KCD = fncGetBUTUKCD2(Trim(ST2.Cells(17, 2)))
-'            rec(UBound(rec)).LINO = fncGetLINO(rec(UBound(rec)).KCD, Trim(ST2.Cells(22, 2)))
-'            rec(UBound(rec)).LINM = IIf(rec(UBound(rec)).LINO = "", "", Trim(ST2.Cells(22, 2)))
-'            strWk = Trim(ST2.Cells(55, 2).Text)
-'            strWk = StrConv(strWk, vbWide)      '2024/04/19 Hayashi Add
-'            For i = 1 To 2
-'                rec(UBound(rec)).YOB(i) = Left(strWk, 50)
-'                strWk = Replace(strWk, rec(UBound(rec)).YOB(i), "")
-'                If strWk = "" Then Exit For
-'            Next
-'            If Not strWk = "" Then
-'                stError.Cells(lRow2, 1) = rec(UBound(rec)).HNO
-'                stError.Cells(lRow2, 2) = "特記事項を100文字以内に変更してください"
-'                stError.Range(stError.Cells(1, 1), stError.Cells(lRow2, 2)).Borders.LineStyle = xlContinuous
-'                lRow2 = lRow2 + 1
-'            End If
-'            If Not Trim(ST.Cells(lRow, 2)) = rec(UBound(rec)).HINM Then
-'                stError.Cells(lRow2, 1) = rec(UBound(rec)).HNO
-'                stError.Cells(lRow2, 2) = "冷凍生地名が異なります"
-'                stError.Range(stError.Cells(1, 1), stError.Cells(lRow2, 2)).Borders.LineStyle = xlContinuous
-'                lRow2 = lRow2 + 1
-'            End If
-'            BK2.Saved = True: BK2.Close
-'            buf = Dir()
-'        Loop
-'        lRow = lRow + 1
-'    Loop
-'    Set ST2 = Nothing: Set BK2 = Nothing
-    
     'ＤＢ接続
-'    CN.CursorLocation = adUseClient
-'    CN.Open P_ConnectString
+    'CN.CursorLocation = adUseClient
+    'CN.Open P_ConnectString
     
     'Delete
     'Deleteは行わない、追加のみに変更 20250827
     'Call subDelUpdate(CN)
     
-'    For i = 1 To UBound(rec)
-'        Call subUpdate(CN, rec(i))
-'    Next
-'    'ＤＢ切断
-'    CN.Close: Set CN = Nothing
+    'For i = 1 To UBound(rec)
+    '    Call subUpdate(CN, rec(i))
+    'Next
+    'ＤＢ切断
+    'CN.Close: Set CN = Nothing
     fncGetUpdData = True
     
 Exit_:
-    Set ST = Nothing
-    BK.Saved = True: BK.Close: Set BK = Nothing
+    '早期リターン時もクリーンアップ
+    GoTo CleanUp
+
+CleanUp:
+    On Error Resume Next
+    If Not RS Is Nothing Then If RS.State = 1 Then RS.Close: Set RS = Nothing
+    If Not BK2 Is Nothing Then BK2.Saved = True: BK2.Close: Set BK2 = Nothing
+    If Not BK Is Nothing Then BK.Saved = True: BK.Close: Set BK = Nothing
+    Set ST2 = Nothing: Set ST = Nothing
     Call subAfterEdit
+    Exit Function
+
+ErrorHandler:
+    MsgBox "fncGetUpdDataでエラー発生: " & Err.Description, vbCritical
+    Resume CleanUp
 End Function
+
 Private Sub subChkMojibake(ByRef strGNM As String)
     Dim lRow        As Long
     lRow = 2

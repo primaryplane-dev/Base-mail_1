@@ -1,12 +1,31 @@
 Option Explicit
 
 Private Sub cmdCancel_Click()
+    ' キャンセル時のリソース解放・変数初期化
+    P_KCD2 = ""
+    P_KJNM = ""
+    P_Regist2 = False
     Unload Me
 End Sub
 
 Private Sub lstKJNM_Click()
-    P_KCD2 = lstKJNM.List(lstKJNM.ListIndex, 0)
-    P_KJNM = lstKJNM.List(lstKJNM.ListIndex, 1)
+    Dim kjcd As String, kjnm As String
+    kjcd = lstKJNM.List(lstKJNM.ListIndex, 0)
+    kjnm = lstKJNM.List(lstKJNM.ListIndex, 1)
+    If kjcd = "" Or kjnm = "" Then
+        MsgBox "工場コード・工場名を選択してください。", vbExclamation
+        Exit Sub
+    End If
+    If Not kjcd Like "###" And Not kjcd Like "#####" Then
+        MsgBox "工場コードは3桁または5桁の数字で入力してください。", vbExclamation
+        Exit Sub
+    End If
+    If Len(kjnm) > 20 Then
+        MsgBox "工場名は20文字以内で入力してください。", vbExclamation
+        Exit Sub
+    End If
+    P_KCD2 = kjcd
+    P_KJNM = kjnm
     P_Regist2 = True
     Unload Me
 End Sub

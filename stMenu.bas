@@ -16,7 +16,7 @@ Private Sub cmdNew_Click()
     Dim strWk           As String
     Dim lWk             As Long
     Dim lWk2            As Long
-    Dim CN              As New ADODB.Connection
+    Dim CN              As ADODB.Connection
     Dim arrChangeKJ()   As String
     Dim rec()           As GIrec
     Dim i               As Long
@@ -26,22 +26,29 @@ Private Sub cmdNew_Click()
     Dim toAddress       As String
     Dim sSp()           As String
     Dim sSp2()          As String
-    
-    If Dir(ThisWorkbook.Path & "\工場送付用(JAN抽出)*.xlsx") = "" Then MsgBox ("工場送付用(JAN抽出)が見つかりません"): Exit Sub
-    
-' ---ＤＢ接続   ←テスト時はコメントにする---
- CN.CursorLocation = adUseClient
- CN.Open P_ConnectString
 
- ReDim rec(0)
- ReDim arrChangeKJ(0)
- '更新データの取得
- If Not fncGetUpdData(CN, arrChangeKJ, rec) Then GoTo Exit_Update
- If UBound(arrChangeKJ) = 0 Or UBound(rec) = 0 Then GoTo Exit_Update
-'-----------------------------------------
-    
 
-' ----テスト用ダミーデータを直接セット----
+    On Error GoTo ErrorHandler
+
+    Set CN = Nothing
+    Set CN = New ADODB.Connection
+
+    If Dir(ThisWorkbook.Path & "\工場送付用(JAN抽出)*.xlsx") = "" Then
+        MsgBox ("工場送付用(JAN抽出)が見つかりません")
+        GoTo CleanUp
+    End If
+
+    ' ---ＤＢ接続---
+    CN.CursorLocation = adUseClient
+    CN.Open P_ConnectString
+
+    ReDim rec(0)
+    ReDim arrChangeKJ(0)
+    '更新データの取得
+    If Not fncGetUpdData(CN, arrChangeKJ, rec) Then GoTo CleanUp
+    If UBound(arrChangeKJ) = 0 Or UBound(rec) = 0 Then GoTo CleanUp
+
+    ' ----テスト用ダミーデータを直接セット----
 'ReDim arrChangeKJ(1)
 'arrChangeKJ(1) = "103"  ' テスト用工場コード
 '
@@ -52,6 +59,11 @@ Private Sub cmdNew_Click()
 
     strWk = "": lWk = 0: lWk2 = 0
     For i = 1 To UBound(arrChangeKJ)
+        ' 工場コードのバリデーション（5桁数字のみ許可）
+        If Not arrChangeKJ(i) Like "#####" Then
+            MsgBox "工場コードが不正です: " & arrChangeKJ(i), vbCritical
+            GoTo CleanUp
+        End If
         lWk = 0
         lWk = fncEditChk(arrChangeKJ(i))
         If lWk2 < lWk Then lWk2 = lWk
@@ -139,11 +151,33 @@ Private Sub cmdNew_Click()
     ContinueNextFactory:
     Next
 
+
 Exit_Update:
-    CN.Close: Set CN = Nothing  '←テスト時はコメントにする
+    On Error Resume Next
+    If Not CN Is Nothing Then If CN.State = 1 Then CN.Close: Set CN = Nothing
+    Exit Sub
+
+CleanUp:
+    On Error Resume Next
+    If Not CN Is Nothing Then If CN.State = 1 Then CN.Close: Set CN = Nothing
+    Exit Sub
+
+ErrorHandler:
+    MsgBox "cmdNew_Clickでエラー発生: " & Err.Description, vbCritical
+    Resume CleanUp
 End Sub
 
 Private Sub cmdUpdate_Click()
 '    Call subSetSVPath
     Call subMain
+End Sub
+
+CleanUp:
+    On Error Resume Next
+    If Not CN Is Nothing Then If CN.State = 1 Then CN.Close: Set CN = Nothing
+    Exit Sub
+
+ErrorHandler:
+    MsgBox "cmdNew_Clickでエラー発生: " & Err.Description, vbCritical
+    Resume CleanUp
 End Sub

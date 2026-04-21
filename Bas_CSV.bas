@@ -4,8 +4,8 @@ Public Const P_Header = "製品番号,冷凍生地名,原材料名1,原材料名
                         ",予備1,予備2,予備3,予備4,予備5,予備6,予備7,予備8,予備9,予備10,予備11,予備12,予備13,予備14,予備15,予備16,予備17,予備18,予備19,予備20"
 
 Public Sub subWriteCSV(ByVal i_BUTUKCD As String, ByRef FSO As Scripting.FileSystemObject)
-    Dim CN          As New ADODB.Connection
-    Dim RS          As New ADODB.Recordset
+    Dim CN          As ADODB.Connection
+    Dim RS          As ADODB.Recordset
     Dim strSQL      As String
     Dim TS          As Object
     Dim strWk       As String
@@ -13,14 +13,19 @@ Public Sub subWriteCSV(ByVal i_BUTUKCD As String, ByRef FSO As Scripting.FileSys
     Dim i           As Long
     Dim j           As Long
     Dim strPath     As String
-    
+
+    On Error GoTo ErrorHandler
+
+    Set CN = New ADODB.Connection
+    Set RS = New ADODB.Recordset
+
     'ＤＢ接続
     CN.CursorLocation = adUseClient
     CN.Open P_ConnectString
-    
+
     strPath = fncGetSVPath(i_BUTUKCD)
     Set TS = FSO.OpenTextFile(Filename:=strPath & P_CsvName, IOMode:=2, Create:=True)   'ForWriting
-    
+
     strSQL = ""
     strSQL = strSQL & "SELECT GIHNO "
     strSQL = strSQL & "     , GIKHN1 "
@@ -45,7 +50,7 @@ Public Sub subWriteCSV(ByVal i_BUTUKCD As String, ByRef FSO As Scripting.FileSys
     strSQL = strSQL & "   AND GIKJCD = '" & i_BUTUKCD & "'"
     strSQL = strSQL & " ORDER BY GIHNO "
     RS.Open strSQL, CN, adOpenForwardOnly, adLockReadOnly
-    
+
     TS.WriteLine (P_Header)
     Do While Not RS.EOF
         If i_BUTUKCD = "103" Then
@@ -135,13 +140,18 @@ Public Sub subWriteCSV(ByVal i_BUTUKCD As String, ByRef FSO As Scripting.FileSys
         End If
      RS.MoveNext
     Loop
-    
-    TS.Close: Set TS = Nothing
-    
-    'ＤＢ切断
-    RS.Close: Set RS = Nothing
-    CN.Close: Set CN = Nothing
-    
+GoTo CleanUp
+
+CleanUp:
+    On Error Resume Next
+    If Not TS Is Nothing Then TS.Close: Set TS = Nothing
+    If Not RS Is Nothing Then If RS.State = 1 Then RS.Close: Set RS = Nothing
+    If Not CN Is Nothing Then If CN.State = 1 Then CN.Close: Set CN = Nothing
+    Exit Sub
+
+ErrorHandler:
+    MsgBox "subWriteCSVでエラー発生: " & Err.Description, vbCritical
+    Resume CleanUp
 End Sub
 
 '制御PCのIPアドレスわかってから実装
@@ -174,8 +184,9 @@ Public Sub subSendCSV(ByVal i_BUTUKCD As String, ByRef FSO As Scripting.FileSyst
     
     'CSVの保存先パスがないPCの場合MkDirするために分割
     sSp2 = Split(P_SavePath & "BK", "\")
-    
+
     For i = 0 To UBound(sSp)
+        On Error GoTo ErrorHandler
         'テスト時(自分PCにCSV作成)ここはコメントアウトしなくても勝手に分岐される
         If sSp(i) = "C:\" Then
             '保存先パスが存在しなければMkDirする
@@ -184,24 +195,29 @@ Public Sub subSendCSV(ByVal i_BUTUKCD As String, ByRef FSO As Scripting.FileSyst
                 If j > 0 Then If Not strPath = "" Then strPath = strPath & "\"
                 strPath = strPath & sSp2(j)
                 If InStr(strPath, "C:\") > 0 Then
-                    If Dir(strPath, vbDirectory) = "" Then MkDir strPath
+                    If Dir(strPath, vbDirectory) = "" Then
+                        MkDir strPath
+                    End If
                 End If
             Next
-            
+
             strPath = sSp(i) & P_SavePath
             '保存先フォルダにCSVがすでにあれば日付時間をファイル名に追記してBKフォルダに入れる
             If FSO.FileExists(strPath & P_CsvName) Then
+                On Error GoTo ErrorHandler
                 FSO.CopyFile strPath & P_CsvName, strPath & "BK\" & Format(Now, "yyyymmddhhmmss_") & P_CsvName, True
             End If
             If FSO.FileExists(strSVPath & P_CsvName) Then
+                On Error GoTo ErrorHandler
                 FSO.CopyFile strSVPath & P_CsvName, strPath & P_CsvName, True
             End If
-            
+
         '本番時(IJPのPCにCSV送信)ここはコメントアウトしなくても勝手に分岐される
         Else
+            On Error GoTo ErrorHandler
             Shell ("net use " & Replace(sSp(i), "\c$\", "") & " " & Pass & " /user:" & ID)
             Application.Wait (Now + TimeValue("0:00:03"))
-            
+
             '-----テストPCにCSV転送テストを行う場合に使用-----
             '上記テスト時コメント解除する
 '                For j = 0 To UBound(sSp2)
@@ -213,19 +229,33 @@ Public Sub subSendCSV(ByVal i_BUTUKCD As String, ByRef FSO As Scripting.FileSyst
 '                    End If
 '                Next
             '-------------------------------------------------
-            
+
             strPath = sSp(i) & P_SavePath
             '保存先フォルダにCSVがすでにあれば日付時間をファイル名に追記してBKフォルダに入れる
             If FSO.FileExists(strPath & P_CsvName) Then
+                On Error GoTo ErrorHandler
                 FSO.CopyFile strPath & P_CsvName, strPath & "BK\" & Format(Now, "yyyymmddhhmmss_") & P_CsvName, True
             End If
             If FSO.FileExists(strSVPath & P_CsvName) Then
+                On Error GoTo ErrorHandler
                 FSO.CopyFile strSVPath & P_CsvName, strPath & P_CsvName, True
             End If
             Shell ("net use " & Replace(sSp(i), "\c$\", "") & " /delete")
         End If
     Next
 
+    Exit Sub
+
+CleanUp:
+    On Error Resume Next
+    If Not TS Is Nothing Then TS.Close: Set TS = Nothing
+    If Not RS Is Nothing Then If RS.State = 1 Then RS.Close: Set RS = Nothing
+    If Not CN Is Nothing Then If CN.State = 1 Then CN.Close: Set CN = Nothing
+    Exit Sub
+
+ErrorHandler:
+    MsgBox "subWriteCSVでエラー発生: " & Err.Description, vbCritical
+    Resume CleanUp
 End Sub
 
 ''制御PCのIPアドレスわかってから実装

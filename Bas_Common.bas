@@ -220,8 +220,33 @@ End Function
 'End Function
 
 Public Sub subMakeEditFile(ByVal i_BUTUKCD As String)
-    Open fncGetSVPath(i_BUTUKCD) & "EditB.txt" For Output As #1
+    Dim retry As Integer: retry = 0
+    Dim maxRetry As Integer: maxRetry = 3
+    Dim filePath As String
+    Dim logFile As Integer
+    Dim logPath As String
+    filePath = fncGetSVPath(i_BUTUKCD) & "EditB.txt"
+RetryOpen:
+    On Error GoTo ErrorHandler
+    Open filePath For Output As #1
     Close #1
+    Exit Sub
+CleanUp:
+    Exit Sub
+ErrorHandler:
+    If retry < maxRetry Then
+        retry = retry + 1
+        Application.Wait (Now + TimeValue("0:00:01"))
+        Resume RetryOpen
+    Else
+        MsgBox "subMakeEditFileでエラー発生: " & Err.Description & vbCrLf & "ファイルが作成できませんでした。", vbCritical
+        logPath = ThisWorkbook.Path & "\EditB_Error.log"
+        logFile = FreeFile
+        Open logPath For Append As #logFile
+        Print #logFile, Now & ", EditB.txt作成失敗, BUTUKCD: " & i_BUTUKCD & ", Error: (" & Err.Number & ")" & Err.Description
+        Close #logFile
+        Resume CleanUp
+    End If
 End Sub
 
 'Public Sub subMakeEditFile()
@@ -233,8 +258,33 @@ End Sub
 'End Sub
 
 Public Sub subDeleteEditFile(ByVal i_BUTUKCD As String)
-    If Not Dir(fncGetSVPath(i_BUTUKCD) & "EditB.txt") = "" Then
-        Kill fncGetSVPath(i_BUTUKCD) & "EditB.txt"
+    Dim retry As Integer: retry = 0
+    Dim maxRetry As Integer: maxRetry = 3
+    Dim filePath As String
+    Dim logFile As Integer
+    Dim logPath As String
+    filePath = fncGetSVPath(i_BUTUKCD) & "EditB.txt"
+RetryDelete:
+    On Error GoTo ErrorHandler
+    If Dir(filePath) <> "" Then
+        Kill filePath
+    End If
+    Exit Sub
+CleanUp:
+    Exit Sub
+ErrorHandler:
+    If retry < maxRetry Then
+        retry = retry + 1
+        Application.Wait (Now + TimeValue("0:00:01"))
+        Resume RetryDelete
+    Else
+        MsgBox "subDeleteEditFileでエラー発生: " & Err.Description & vbCrLf & "ファイルが削除できませんでした。", vbCritical
+        logPath = ThisWorkbook.Path & "\EditB_Error.log"
+        logFile = FreeFile
+        Open logPath For Append As #logFile
+        Print #logFile, Now & ", EditB.txt削除失敗, BUTUKCD: " & i_BUTUKCD & ", Error: (" & Err.Number & ")" & Err.Description
+        Close #logFile
+        Resume CleanUp
     End If
 End Sub
 
@@ -248,14 +298,20 @@ End Sub
 'End Sub
 
 Public Function fncExistData() As Boolean
-    Dim CN          As New ADODB.Connection
-    Dim RS          As New ADODB.Recordset
+    Dim CN          As ADODB.Connection
+    Dim RS          As ADODB.Recordset
     Dim strSQL      As String
     fncExistData = False
+
+    On Error GoTo ErrorHandler
+
+    Set CN = New ADODB.Connection
+    Set RS = New ADODB.Recordset
+
     'ＤＢ接続
     CN.CursorLocation = adUseClient
     CN.Open P_ConnectString
-    
+
     strSQL = ""
     strSQL = strSQL & "SELECT *"
     strSQL = strSQL & " FROM LIBWMF.WGIP01"
@@ -264,7 +320,17 @@ Public Function fncExistData() As Boolean
     strSQL = strSQL & "   AND NOT GIPROJ = '9' "
     RS.Open strSQL, CN, adOpenForwardOnly, adLockReadOnly
     If RS.RecordCount > 0 Then fncExistData = True
-    RS.Close: Set RS = Nothing
-    CN.Close: Set CN = Nothing
+
+    GoTo CleanUp
+
+CleanUp:
+    On Error Resume Next
+    If Not RS Is Nothing Then If RS.State = 1 Then RS.Close: Set RS = Nothing
+    If Not CN Is Nothing Then If CN.State = 1 Then CN.Close: Set CN = Nothing
+    Exit Function
+
+ErrorHandler:
+    MsgBox "fncExistDataでエラー発生: " & Err.Description, vbCritical
+    Resume CleanUp
 End Function
 

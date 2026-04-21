@@ -119,13 +119,13 @@ Private Sub subEditListLabel()
             Case Else: Exit Do
             End Select
             Err.Clear
-            On Error Resume Next
+            On Error GoTo ErrorHandler
             STHina.Range(r.Address).Copy ST.Cells(lRow, 1)
             If bHUp Then
                 ST.Rows(lRow + 3).RowHeight = 23.5
             End If
             For i = 1 To 3
-                Err.Number = 0
+                On Error GoTo ErrorHandler
                 Application.Wait [now()] + 150 / 86400000
                 STHina.Range(r.Address).CopyPicture
                 If Err.Number = 0 Then Exit For
@@ -134,7 +134,7 @@ Private Sub subEditListLabel()
                 errFLG = True: Exit Do
             End If
             For i = 1 To 3
-                Err.Number = 0
+                On Error GoTo ErrorHandler
                 Application.Wait [now()] + 150 / 86400000
                 ST.Cells(lRow, 6).PasteSpecial
                 If Err.Number = 0 Then Exit For
@@ -142,7 +142,6 @@ Private Sub subEditListLabel()
             If Err.Number <> 0 Then
                 errFLG = True: Exit Do
             End If
-            On Error GoTo 0
             ST.Shapes(ST.Shapes.Count).Height = ST.Range(ST.Cells(lRow, 6), ST.Cells(lRow + lWk, 6)).Height
             lRow = lRow + lWk + 2
             Cnt = Cnt + 1
@@ -153,11 +152,17 @@ Private Sub subEditListLabel()
             End If
             Exit Do
         Loop
-        On Error GoTo 0
         Application.CutCopyMode = False
         If errFLG Then Exit Do
         RS.MoveNext
     Loop
+
+    Exit Sub
+
+ErrorHandler:
+    MsgBox "ラベル貼付処理でエラー発生: " & Err.Description, vbCritical
+    Application.CutCopyMode = False
+    Exit Sub
 
     RS.Close: Set RS = Nothing
     CN.Close: Set CN = Nothing

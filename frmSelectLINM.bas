@@ -5,7 +5,17 @@ Private Sub cmdCancel_Click()
 End Sub
 
 Private Sub lstLINM_Click()
-    P_LINM = lstLINM.List(lstLINM.ListIndex, 0)
+    Dim linm As String
+    linm = lstLINM.List(lstLINM.ListIndex, 0)
+    If linm = "" Then
+        MsgBox "ライン名を選択してください。", vbExclamation
+        Exit Sub
+    End If
+    If Len(linm) > 20 Then
+        MsgBox "ライン名は20文字以内で入力してください。", vbExclamation
+        Exit Sub
+    End If
+    P_LINM = linm
     P_Regist = True
     Unload Me
 End Sub

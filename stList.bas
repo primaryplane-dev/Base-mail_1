@@ -12,6 +12,10 @@ Private Sub cmdLayout9_Click()
 End Sub
 
 Private Sub cmdUpdate_Click()
+'    Dim blH             As Boolean
+'    Dim blM             As Boolean
+'    Dim blT             As Boolean
+'    Dim blF             As Boolean
     Dim strWk           As String
     Dim lWk             As Long
     Dim lWk2            As Long
@@ -55,6 +59,34 @@ Private Sub cmdUpdate_Click()
         End If
     End If
     
+'    'サーバーパスのセット
+'    Call subSetSVPath
+'    intWk = 0
+'    intWk = fncEditChk(blH, blM, blT, blF)
+'    If intWk > 0 Then
+'        If blH Then strWk = "枚方工場"
+'        If blM Then
+'            If Not strWk = "" Then strWk = strWk & ","
+'            strWk = strWk & "武蔵工場"
+'        End If
+'        If blT Then
+'            If Not strWk = "" Then strWk = strWk & ","
+'            strWk = strWk & "タカラ食品"
+'        End If
+'        If blF Then
+'            If Not strWk = "" Then strWk = strWk & ","
+'            strWk = strWk & "福岡工場"
+'        End If
+'        MsgBox (strWk & "でCSVファイルを作成中です。")
+'        If intWk = 1 Then
+'            If MsgBox("排他ファイルを強制的に削除してCSVファイルを作成しますか？", vbYesNo) = vbYes Then
+'                Call subDeleteEditFile
+'                GoTo Update
+'            End If
+'        End If
+'        Exit Sub
+'    End If
+
     '他PCで排他ロックがかかる前に先に排他ファイルを作成しておく
     For i = 1 To UBound(arrChangeKJ)
         '排他ファイルを作成
@@ -74,11 +106,8 @@ Private Sub cmdUpdate_Click()
     Next
     Set FSO = Nothing
     
-    
-'削除があった工場にメール送信　20260407 修正(送信元選択フォームの表示)
+'削除があった工場にメール送信
 For i = 1 To UBound(arrChangeKJ)
-    Debug.Print "arrChangeKJ(" & i & ")=" & arrChangeKJ(i)
-
     strBody = ""
     For j = 1 To UBound(delRec)
         If delRec(j).KCD = arrChangeKJ(i) Then
@@ -90,7 +119,7 @@ For i = 1 To UBound(arrChangeKJ)
         fromAddress = "": toAddress = ""
         ' 送信元選択フォームを表示
         Dim frm As New frmFromAddress
-        frm.KCD = arrChangeKJ(i)   ' ← 工場コードをセット
+        frm.KCD = arrChangeKJ(i)   ' 工場コードをセット
         frm.Show vbModal
         If frm.Tag <> "" Then
             fromAddress = frm.Tag
@@ -99,19 +128,51 @@ For i = 1 To UBound(arrChangeKJ)
             Set frm = Nothing
             GoTo ContinueNextFactory
         End If
-        Unload frm
         Set frm = Nothing
         Call subGetMailAdd(arrChangeKJ(i), fromAddress, toAddress)
         Call subSendMail(fromAddress, toAddress, "", "IJPデータ削除通知", strBody)
     End If
 ContinueNextFactory:
 Next
-    
-       
+
+'    '削除があった工場にメール送信
+'    For i = 1 To UBound(arrChangeKJ)
+'        strBody = ""
+'        For j = 1 To UBound(delRec)
+'            If delRec(j).KCD = arrChangeKJ(i) Then
+'                If Not strBody = "" Then strBody = strBody & vbLf
+'                strBody = strBody & fncMakebody2(1, delRec(j).KCD, delRec(j).HINM)
+'            End If
+'        Next
+'        If Not strBody = "" Then
+'            fromAddress = "": toAddress = ""
+'            Call subGetMailAdd(arrChangeKJ(i), fromAddress, toAddress)
+'            Call subSendMail(fromAddress, toAddress, "", "IJPデータ削除通知", strBody)
+'        End If
+'    Next
+        
     'データ再表示
     Call subMain
     
-
+    
+'Update:
+'    Call subMakeEditFile
+'
+'    Call subSetData
+'    Dim FSO     As New Scripting.FileSystemObject
+'    'CSVを作成する
+'    Call subWriteCSV(FSO)
+'    'CSVをファイルサーバと工場の共有フォルダに送る
+'    Call subSendCSV(FSO)
+''    'CSVとエクセルを比較する
+''    Call subChkCSV(FSO)
+'    Set FSO = Nothing
+'    Call subMain
+'    'エラーになった製品があればシートを表示する
+'    If Not stError.Cells(3, 1) = "" Then stError.Select
+'
+'Exit_Update:
+'    Call subDeleteEditFile
 End Sub
 
 Private Sub cmdLabel_Click()
@@ -129,21 +190,23 @@ Private Function fncChk(ByRef arrChangeKJ() As String) As Boolean
     Dim bEdit       As Boolean
     Dim bExist      As Boolean
     Dim i           As Long
-    Dim CN          As New ADODB.Connection
+    Dim CN          As ADODB.Connection
     fncChk = False
-    
-    'ＤＢ接続
+
+    On Error GoTo ErrorHandler
+
+    Set CN = New ADODB.Connection
     CN.CursorLocation = adUseClient
     CN.Open P_ConnectString
-    
+
     '入力チェック
     For lRow = 3 To lMaxRow
         If Not Trim(Me.Cells(lRow, 1)) = "" Then
-            If Not IsNumeric(Me.Cells(lRow, 1)) Then MsgBox "コードは数値のみ": GoTo Exit_
-            If Not fncFindCode(CN, Trim(Me.Cells(lRow, 1))) Then MsgBox "コード'" & Trim(Me.Cells(lRow, 1)) & "'は存在しません": GoTo Exit_
+            If Not IsNumeric(Me.Cells(lRow, 1)) Then MsgBox "コードは数値のみ": GoTo CleanUp
+            If Not fncFindCode(CN, Trim(Me.Cells(lRow, 1))) Then MsgBox "コード'" & Trim(Me.Cells(lRow, 1)) & "'は存在しません": GoTo CleanUp
         End If
     Next
-    
+
     '変更チェック(ワークシートと比較)
     ReDim arrChangeKJ(0)
     lRow = 3: lRow2 = 3
@@ -186,31 +249,47 @@ Private Function fncChk(ByRef arrChangeKJ() As String) As Boolean
         End If
         lRow = lRow + 1
     Loop
-    
+
     '商品データが削除、変更された工場があるか
-    If UBound(arrChangeKJ) = 0 Then GoTo Exit_
+    If UBound(arrChangeKJ) = 0 Then GoTo CleanUp
 
     fncChk = True
-    
-Exit_:
-    'ＤＢ切断
-    CN.Close: Set CN = Nothing
 
+CleanUp:
+    On Error Resume Next
+    If Not CN Is Nothing Then If CN.State = 1 Then CN.Close: Set CN = Nothing
+    Exit Function
+
+ErrorHandler:
+    MsgBox "fncChkでエラー発生: " & Err.Description, vbCritical
+    Resume CleanUp
 End Function
 
 Private Function fncFindCode(ByRef CN As ADODB.Connection, ByVal i_CODE As String) As Boolean
-    Dim RS      As New ADODB.Recordset
+    Dim RS      As ADODB.Recordset
     Dim strSQL  As String
     fncFindCode = False
+
+    On Error GoTo ErrorHandler
+
+    Set RS = New ADODB.Recordset
     strSQL = ""
     strSQL = strSQL & " SELECT * FROM LIBWMF.WGIP01"
     strSQL = strSQL & "  WHERE GIDELT = ''"
     strSQL = strSQL & "    AND (GIHNO = '" & Format(i_CODE, "00000") & "' OR GIKHN1 = '" & Format(i_CODE, "00000") & "')"
     strSQL = strSQL & "    AND GIKBN = '2' "
-    
+
     RS.Open strSQL, CN, adOpenForwardOnly, adLockReadOnly
     If RS.RecordCount > 0 Then fncFindCode = True
-    RS.Close: Set RS = Nothing
+
+CleanUp:
+    On Error Resume Next
+    If Not RS Is Nothing Then If RS.State = 1 Then RS.Close: Set RS = Nothing
+    Exit Function
+
+ErrorHandler:
+    MsgBox "fncFindCodeでエラー発生: " & Err.Description, vbCritical
+    Resume CleanUp
 End Function
 
 Private Sub cmdLabelAll_Click()

@@ -61,11 +61,21 @@ Private Sub cmdOK_Click()
             If ctrl.Value = True Then
                 If ctrl.Name = "optFreeInput" Then
                     ' フリー入力が選択された場合はTextBoxの値をチェック
-                    If Trim(Me.fraFromAddress.Controls("txtFreeInput").Text) = "" Then
+                    Dim mailInput As String
+                    mailInput = Trim(Me.fraFromAddress.Controls("txtFreeInput").Text)
+                    If mailInput = "" Then
                         MsgBox "フリー入力欄に送信元アドレスを入力してください。", vbExclamation
                         Exit Sub
                     End If
-                    Me.Tag = Me.fraFromAddress.Controls("txtFreeInput").Text
+                    If Len(mailInput) > 100 Then
+                        MsgBox "メールアドレスは100文字以内で入力してください。", vbExclamation
+                        Exit Sub
+                    End If
+                    If Not fncIsValidMailAddress(mailInput) Then
+                        MsgBox "メールアドレスの形式が正しくありません。", vbExclamation
+                        Exit Sub
+                    End If
+                    Me.Tag = mailInput
                 Else
                     Me.Tag = ctrl.Caption
                 End If
